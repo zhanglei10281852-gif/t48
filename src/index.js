@@ -4,6 +4,8 @@ const { initDb } = require("./db");
 const applicantRoutes = require("./routes/applicants");
 const caseRoutes = require("./routes/cases");
 const lawyerRoutes = require("./routes/lawyers");
+const staffRoutes = require("./routes/staff");
+const workOrderRoutes = require("./routes/workOrders");
 
 const app = express();
 const PORT = 7290;
@@ -18,6 +20,8 @@ app.get("/", (req, res) => {
 app.use("/api/applicants", applicantRoutes);
 app.use("/api/cases", caseRoutes);
 app.use("/api/lawyers", lawyerRoutes);
+app.use("/api/staff", staffRoutes);
+app.use("/api/work-orders", workOrderRoutes);
 
 async function start() {
   await initDb();
