@@ -75,16 +75,38 @@ router.put("/:id", async (req, res) => {
 });
 
 router.delete("/:id", async (req, res) => {
-  const [[existing]] = await pool.execute(
-    "SELECT id, current_count FROM staff WHERE id = ?",
-    [req.params.id],
-  );
-  if (!existing) return res.status(404).json({ error: "工作人员不存在" });
-  if (existing.current_count > 0) {
-    return res.status(400).json({ error: "该工作人员仍有在审工单，无法删除" });
+  try {
+    const [[existing]] = await pool.execute(
+      "SELECT id, name, staff_no, current_count FROM staff WHERE id = ?",
+      [req.params.id],
+    );
+    if (!existing) return res.status(404).json({ error: "工作人员不存在" });
+
+    if (existing.current_count > 0) {
+      return res.status(400).json({ error: "该工作人员仍有在审工单，无法删除" });
+    }
+
+    const [[{ history_count }]] = await pool.execute(
+      "SELECT COUNT(*) as history_count FROM work_orders WHERE assigned_staff_id = ?",
+      [req.params.id],
+    );
+
+    if (history_count > 0) {
+      return res
+        .status(400)
+        .json({ error: `该工作人员有 ${history_count} 条历史工单记录，无法删除。建议将其角色调整为非审核员或保留历史数据。` });
+    }
+
+    await pool.execute("DELETE FROM staff WHERE id = ?", [req.params.id]);
+    res.json({ message: "删除成功" });
+  } catch (e) {
+    if (e.code === "ER_ROW_IS_REFERENCED_2" || e.code === "ER_ROW_IS_REFERENCED") {
+      return res
+        .status(400)
+        .json({ error: "该工作人员有关联数据，无法删除。建议将其角色调整为非审核员。" });
+    }
+    res.status(500).json({ error: e.message });
   }
-  await pool.execute("DELETE FROM staff WHERE id = ?", [req.params.id]);
-  res.json({ message: "删除成功" });
 });
 
 module.exports = router;
